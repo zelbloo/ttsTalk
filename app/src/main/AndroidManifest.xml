@@ -2,6 +2,27 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.xtalk.assistant">
     
+    <!-- 添加查询权限，用于访问TTS引擎（Android 11+ 要求） -->
+    <queries>
+        <!-- 查询TTS引擎 -->
+        <intent>
+            <action android:name="android.speech.tts.engine.CHECK_TTS_DATA" />
+        </intent>
+        <!-- 安装TTS数据 -->
+        <intent>
+            <action android:name="android.speech.tts.engine.INSTALL_TTS_DATA" />
+        </intent>
+        <!-- 打开TTS设置 -->
+        <intent>
+            <action android:name="com.android.settings.TTS_SETTINGS" />
+        </intent>
+        <!-- 查询支持TTS的应用 -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+    
     <!-- 添加音频权限 -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />

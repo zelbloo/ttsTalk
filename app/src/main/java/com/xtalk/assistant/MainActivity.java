@@ -1,11 +1,14 @@
 package com.xtalk.assistant;
 
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.os.Build;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
-import android.view.View;
+import android.util.Log;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.app.AlertDialog;
@@ -22,6 +25,7 @@ import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity implements TextToSpeech.OnInitListener, PhraseCategoryFragment.PhraseEditListener {
 
+    private static final String TAG = "MainActivity_TTS";
     private TextView sentenceTextView;
     private TabLayout categoryTabLayout;
     private ViewPager2 phraseViewPager;
@@ -29,6 +33,12 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
     private StringBuilder currentSentence;
     private DatabaseHelper dbHelper;
     private PhrasePagerAdapter phrasePagerAdapter;
+   // 添加标志，防止无限循环初始化
+    private boolean isInitializing = false;
+    private boolean isLanguageSettingFailed = false;
+    private boolean hasTriedOtherEngines = false;
+    private int initializationAttempts = 0;
+    private static final int MAX_INITIALIZATION_ATTEMPTS = 3;
     
     // 请求代码
     private static final int REQUEST_ADD_PHRASE = 1;
@@ -85,46 +95,13 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
         // 设置清空按钮点击事件
         findViewById(R.id.clear_button).setOnClickListener(v -> clearSentence());
         
-        // 延迟初始化TTS，确保应用启动后再初始化，兼容旧版Android
-        findViewById(R.id.play_button).postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                initializeTTS();
-            }
+        // 延迟初始化 TTS
+        findViewById(R.id.play_button).postDelayed(() -> {
+            Log.d(TAG, "开始初始化 TTS，Android 版本: " + Build.VERSION.SDK_INT);
+            initializeTTS();
         }, 500);
     }
     
-    /**
-     * 初始化TTS引擎，兼容Android 16
-     */
-    private void initializeTTS() {
-        try {
-            // 直接初始化TTS，不指定引擎，让系统自动选择
-            textToSpeech = new TextToSpeech(getApplicationContext(), this);
-            
-            // 显示调试信息
-            Toast.makeText(this, "TTS初始化请求已发送", Toast.LENGTH_SHORT).show();
-        } catch (Exception e) {
-            // 捕获初始化异常
-            e.printStackTrace();
-            Toast.makeText(this, "TTS初始化异常: " + e.getMessage(), Toast.LENGTH_LONG).show();
-            
-            // 显示更详细的错误信息
-            showTTSInitErrorDialog(e.getMessage());
-        }
-    }
-    
-    /**
-     * 显示TTS初始化错误对话框
-     */
-    private void showTTSInitErrorDialog(String errorMessage) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("TTS初始化失败")
-               .setMessage("语音合成初始化失败: " + errorMessage + "\n\n请确保您的设备已安装并启用了支持中文的TTS引擎。")
-               .setPositiveButton("确定", null)
-               .show();
-    }
-
     /**
      * 将词组添加到当前句子中
      */
@@ -135,59 +112,422 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
         currentSentence.append(phrase);
         sentenceTextView.setText(currentSentence.toString());
     }
-
+    
     /**
-     * 播放当前句子，兼容Android 16
+     * 初始化 TTS 引擎 - Android 16 兼容版本
+     */
+    private void initializeTTS() {
+        if (isInitializing) {
+            Log.w(TAG, "TTS 正在初始化中，跳过重复请求");
+            return;
+        }
+        
+        isInitializing = true;
+        Log.d(TAG, "开始 TTS 初始化，尝试次数: " + initializationAttempts);
+        
+        try {
+            // 关键修复：使用 Activity Context 而不是 ApplicationContext
+            textToSpeech = new TextToSpeech(this, this);
+            Log.d(TAG, "TTS 构造函数调用成功");
+        } catch (Exception e) {
+            Log.e(TAG, "TTS 初始化异常", e);
+            isInitializing = false;
+            Toast.makeText(this, "TTS 初始化失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    public void onInit(int status) {
+        isInitializing = false;
+        Log.d(TAG, "TTS onInit 回调，状态码: " + status + ", 当前尝试次数: " + initializationAttempts + ", hasTriedOtherEngines: " + hasTriedOtherEngines);
+        
+        if (status == TextToSpeech.SUCCESS) {
+            // 只有在首次尝试或成功时才重置尝试次数和失败标志
+            if (!hasTriedOtherEngines) {
+                initializationAttempts = 0;
+                isLanguageSettingFailed = false;
+            }
+            
+            // 尝试设置中文语言，优化isLanguageAvailable()的使用
+            boolean isChineseAvailable = false;
+            int langResult = TextToSpeech.LANG_MISSING_DATA;
+            
+            try {
+                // 1. 优化isLanguageAvailable()检查，使用更多中文Locale，并记录详细结果
+                Log.d(TAG, "开始检测中文支持状态...");
+                
+                // 检查多种中文Locale
+                Locale[] chineseLocales = {
+                    Locale.CHINESE,           // 中文（通用）
+                    Locale.SIMPLIFIED_CHINESE, // 简体中文
+                    Locale.CHINA,             // 中文（中国）
+                    new Locale("zh"),           // zh语言代码
+                    new Locale("zh", "CN"),       // zh-CN语言代码
+                    new Locale("zh", "CHS")       // zh-CHS语言代码
+                };
+                
+                for (Locale locale : chineseLocales) {
+                    int availableResult = textToSpeech.isLanguageAvailable(locale);
+                    Log.d(TAG, "isLanguageAvailable(" + locale + ") 返回: " + langResultToString(availableResult));
+                    
+                    // 只要返回值不是LANG_NOT_SUPPORTED或LANG_MISSING_DATA，就认为支持
+                    if (availableResult != TextToSpeech.LANG_NOT_SUPPORTED && availableResult != TextToSpeech.LANG_MISSING_DATA) {
+                        isChineseAvailable = true;
+                        break;
+                    }
+                }
+                
+                Log.d(TAG, "中文支持状态检测结果: " + (isChineseAvailable ? "支持" : "不支持"));
+                
+                // 2. 无论isLanguageAvailable()结果如何，都尝试设置中文，因为某些TTS引擎的isLanguageAvailable()返回值不准确
+                // 先尝试设置语言
+                langResult = textToSpeech.setLanguage(Locale.CHINESE);
+                Log.d(TAG, "设置 Locale.CHINESE 结果: " + langResultToString(langResult));
+                
+                if (langResult == TextToSpeech.LANG_MISSING_DATA || 
+                    langResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    // 尝试简体中文
+                    langResult = textToSpeech.setLanguage(Locale.SIMPLIFIED_CHINESE);
+                    Log.d(TAG, "设置 Locale.SIMPLIFIED_CHINESE 结果: " + langResultToString(langResult));
+                }
+                
+                if (langResult == TextToSpeech.LANG_MISSING_DATA || 
+                    langResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    // 尝试 Locale.CHINA
+                    langResult = textToSpeech.setLanguage(Locale.CHINA);
+                    Log.d(TAG, "设置 Locale.CHINA 结果: " + langResultToString(langResult));
+                }
+                
+                if (langResult == TextToSpeech.LANG_MISSING_DATA || 
+                    langResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    // 尝试zh语言代码
+                    langResult = textToSpeech.setLanguage(new Locale("zh"));
+                    Log.d(TAG, "设置 zh 语言代码结果: " + langResultToString(langResult));
+                }
+                
+                // 3. 无论setLanguage()结果如何，都尝试直接播放语音，因为某些TTS引擎的setLanguage()返回值不准确
+                // 但仅在首次尝试时执行
+                if (langResult == TextToSpeech.LANG_NOT_SUPPORTED && !isLanguageSettingFailed) {
+                    Log.d(TAG, "setLanguage() 返回不支持，但尝试直接播放测试语音...");
+                    String testText = "测试语音播放";
+                    int speakResult = textToSpeech.speak(testText, TextToSpeech.QUEUE_FLUSH, null);
+                    Log.d(TAG, "直接播放测试语音结果: " + (speakResult == TextToSpeech.SUCCESS ? "成功" : "失败"));
+                    
+                    if (speakResult == TextToSpeech.SUCCESS) {
+                        // 播放成功，认为TTS引擎支持中文，忽略setLanguage()的返回值
+                        langResult = TextToSpeech.LANG_AVAILABLE;
+                        Log.d(TAG, "直接播放成功，覆盖setLanguage()结果为LANG_AVAILABLE");
+                    }
+                }
+                
+            } catch (Exception e) {
+                Log.e(TAG, "检测或设置语言时发生异常", e);
+            }
+            
+            // 检查最终结果
+            if (langResult == TextToSpeech.LANG_MISSING_DATA) {
+                Log.e(TAG, "TTS 语言数据缺失");
+                // 重置标志，因为这是一个不同的问题（数据缺失而非引擎不支持）
+                hasTriedOtherEngines = false;
+                showDownloadLanguageDataDialog();
+            } else if (langResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+                Log.e(TAG, "TTS 引擎不支持中文");
+                
+                // 检查是否已经尝试过语言设置失败，防止无限循环
+                if (isLanguageSettingFailed) {
+                    Log.e(TAG, "语言设置已失败过，终止尝试");
+                    // 重置标志
+                    hasTriedOtherEngines = false;
+                    showTTSNotSupportedDialog();
+                    return;
+                }
+                
+                // 设置语言设置失败标志
+                isLanguageSettingFailed = true;
+                
+                // 列出可用引擎
+                List<String> engines = getAvailableTtsEngines();
+                Log.d(TAG, "可用 TTS 引擎: " + engines);
+                
+                // 只有当引擎数量大于1时才尝试其他引擎，并且确保不会无限循环
+                if (engines != null && engines.size() > 1 && initializationAttempts < MAX_INITIALIZATION_ATTEMPTS) {
+                    // 设置标志，表明我们正在尝试其他引擎
+                    hasTriedOtherEngines = true;
+                    // 尝试其他引擎
+                    tryNextEngine(engines);
+                } else {
+                    // 没有更多引擎可以尝试，显示错误对话框
+                    // 重置标志
+                    hasTriedOtherEngines = false;
+                    showTTSNotSupportedDialog();
+                }
+            } else {
+                // 成功
+                try {
+                    textToSpeech.setSpeechRate(1.0f);
+                    textToSpeech.setPitch(1.0f);
+                } catch (Exception e) {
+                    Log.e(TAG, "设置语速和音调时发生异常", e);
+                }
+                
+                // 重置所有标志，因为初始化成功
+                initializationAttempts = 0;
+                isLanguageSettingFailed = false;
+                hasTriedOtherEngines = false;
+                
+                Log.i(TAG, "TTS 初始化成功，语言设置完成");
+                Toast.makeText(this, "语音功能已就绪", Toast.LENGTH_SHORT).show();
+                
+                // 可选：播放测试语音
+                // testTTS();
+            }
+        } else {
+            Log.e(TAG, "TTS 初始化失败，状态码: " + status);
+            
+            if (initializationAttempts < MAX_INITIALIZATION_ATTEMPTS) {
+                // 增加尝试次数
+                initializationAttempts++;
+                
+                Log.d(TAG, "准备重试 TTS 初始化 (第" + initializationAttempts + "/" + MAX_INITIALIZATION_ATTEMPTS + "次)");
+                
+                // 延迟重试，增加延迟时间，减少toast频率
+                new android.os.Handler().postDelayed(() -> {
+                    if (!isInitializing) {
+                        Log.d(TAG, "重试 TTS 初始化");
+                        initializeTTS();
+                    } else {
+                        Log.d(TAG, "TTS 正在初始化中，跳过此次重试");
+                    }
+                }, 2000); // 增加延迟到2秒，减少toast频率
+            } else {
+                // 已达到最大尝试次数，显示错误对话框
+                Log.e(TAG, "已达到最大尝试次数（" + MAX_INITIALIZATION_ATTEMPTS + "次），终止重试");
+                // 重置标志
+                hasTriedOtherEngines = false;
+                showTTSInitErrorDialog("TTS 初始化失败，错误码: " + status);
+            }
+        }
+    }
+    
+    /**
+     * 尝试使用下一个可用引擎
+     */
+    private void tryNextEngine(List<String> engines) {
+        // 添加防护机制，防止无限循环
+        if (engines == null || engines.isEmpty()) {
+            Log.e(TAG, "引擎列表为空，终止尝试");
+            showTTSNotSupportedDialog();
+            return;
+        }
+        
+        // 检查是否已达到最大尝试次数
+        if (initializationAttempts >= MAX_INITIALIZATION_ATTEMPTS) {
+            Log.e(TAG, "已达到最大尝试次数（" + MAX_INITIALIZATION_ATTEMPTS + "次），终止尝试");
+            showTTSInitErrorDialog("TTS 初始化失败，已尝试 " + MAX_INITIALIZATION_ATTEMPTS + " 次");
+            return;
+        }
+        
+        // 检查是否已超过引擎列表大小
+        if (initializationAttempts >= engines.size()) {
+            Log.e(TAG, "已尝试所有可用引擎（" + engines.size() + "个），终止尝试");
+            showTTSNotSupportedDialog();
+            return;
+        }
+        
+        String nextEngine = engines.get(initializationAttempts);
+        int currentAttempt = initializationAttempts + 1;
+        
+        Log.d(TAG, "尝试使用引擎 (第" + currentAttempt + "/" + MAX_INITIALIZATION_ATTEMPTS + "次): " + nextEngine);
+        Toast.makeText(this, "尝试使用引擎 (" + currentAttempt + "/" + MAX_INITIALIZATION_ATTEMPTS + "): " + nextEngine, Toast.LENGTH_SHORT).show();
+        
+        try {
+            // 释放旧实例
+            if (textToSpeech != null) {
+                textToSpeech.shutdown();
+                textToSpeech = null;
+            }
+            
+            // 增加尝试次数，防止无限循环
+            initializationAttempts++;
+            
+            // 使用指定引擎初始化，兼容 Android 16
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                // API 21+ 支持指定引擎
+                textToSpeech = new TextToSpeech(this, this, nextEngine);
+            } else {
+                // API 21- 不支持指定引擎，使用默认方式
+                textToSpeech = new TextToSpeech(this, this);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "使用引擎 " + nextEngine + " 初始化失败", e);
+            // 继续尝试下一个，但添加延迟和防护
+            new android.os.Handler().postDelayed(() -> {
+                // 再次检查最大尝试次数
+                if (initializationAttempts < MAX_INITIALIZATION_ATTEMPTS) {
+                    tryNextEngine(engines);
+                } else {
+                    Log.e(TAG, "已达到最大尝试次数，终止尝试");
+                    showTTSInitErrorDialog("TTS 初始化失败，已尝试 " + MAX_INITIALIZATION_ATTEMPTS + " 次");
+                }
+            }, 1000); // 增加延迟时间，减少toast频率
+        }
+    }
+    
+    /**
+     * 获取可用的 TTS 引擎 - Android 16 兼容版本
+     */
+    private List<String> getAvailableTtsEngines() {
+        List<String> engines = new ArrayList<>();
+        PackageManager pm = getPackageManager();
+        
+        try {
+            // 方法 1：查询 TTS_SERVICE Intent（获取 TTS 服务）
+            // 使用 PackageManager.MATCH_ALL 标志，兼容 Android 16
+            Intent ttsServiceIntent = new Intent();
+            // ACTION_TTS_SERVICE 在 API 21+ 可用，但我们使用字符串常量兼容旧版
+            ttsServiceIntent.setAction("android.speech.tts.engine.TTS_SERVICE");
+            
+            // 使用兼容旧版 Android 的标志
+            int flags = PackageManager.MATCH_DEFAULT_ONLY;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                flags = PackageManager.MATCH_ALL;
+            }
+            
+            List<ResolveInfo> services = pm.queryIntentServices(ttsServiceIntent, flags);
+            
+            Log.d(TAG, "查询到 " + services.size() + " 个 TTS 服务");
+            
+            for (ResolveInfo info : services) {
+                if (info.serviceInfo != null) {
+                    String pkg = info.serviceInfo.packageName;
+                    if (pkg != null && !engines.contains(pkg)) {
+                        engines.add(pkg);
+                        Log.d(TAG, "找到 TTS 引擎（服务）: " + pkg);
+                    }
+                }
+            }
+            
+            // 方法 2：查询 CHECK_TTS_DATA Intent（获取 TTS 活动）
+            Intent checkIntent = new Intent(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
+            List<ResolveInfo> activities = pm.queryIntentActivities(checkIntent, flags);
+            
+            Log.d(TAG, "查询到 " + activities.size() + " 个 TTS 配置活动");
+            
+            for (ResolveInfo info : activities) {
+                if (info.activityInfo != null) {
+                    String pkg = info.activityInfo.packageName;
+                    if (pkg != null && !engines.contains(pkg)) {
+                        engines.add(pkg);
+                        Log.d(TAG, "找到 TTS 引擎（活动）: " + pkg);
+                    }
+                }
+            }
+            
+            // 方法 3：使用 TextToSpeech.getEngines()
+            // getEngines() 方法在 API 11 中添加，需要一个 TTS 实例来调用
+            try {
+                if (textToSpeech != null) {
+                    List<TextToSpeech.EngineInfo> engineInfos = textToSpeech.getEngines();
+                    Log.d(TAG, "getEngines() 返回 " + engineInfos.size() + " 个引擎");
+                    
+                    for (TextToSpeech.EngineInfo info : engineInfos) {
+                        if (info.name != null && !engines.contains(info.name)) {
+                            engines.add(info.name);
+                            Log.d(TAG, "找到 TTS 引擎（getEngines）: " + info.name);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "getEngines() 调用失败", e);
+            }
+            
+            // 方法 4：添加常见的 TTS 引擎包名作为备选（兼容 Android 16）
+            List<String> commonEngines = new ArrayList<>();
+            commonEngines.add("com.google.android.tts"); // Google TTS
+            commonEngines.add("com.svox.pico"); // Pico TTS（Android 内置）
+            commonEngines.add("com.iflytek.speechcloud"); // 讯飞 TTS
+            commonEngines.add("com.baidu.duersdk.opensdk"); // 百度 TTS
+            commonEngines.add("com.oppo.tts"); // OPPO TTS（一加手机使用）
+            commonEngines.add("com.coloros.speech"); // ColorOS TTS（一加手机使用）
+            
+            for (String engine : commonEngines) {
+                if (!engines.contains(engine)) {
+                    // 检查引擎是否真的安装在设备上
+                    Intent engineCheckIntent = new Intent();
+                    engineCheckIntent.setPackage(engine);
+                    engineCheckIntent.setAction(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
+                    List<ResolveInfo> resolveInfos = pm.queryIntentActivities(engineCheckIntent, flags);
+                    if (!resolveInfos.isEmpty()) {
+                        engines.add(engine);
+                        Log.d(TAG, "找到 TTS 引擎（常见引擎）: " + engine);
+                    }
+                }
+            }
+            
+        } catch (Exception e) {
+            Log.e(TAG, "查询 TTS 引擎时发生异常", e);
+        }
+        
+        return engines;
+    }
+    
+    /**
+     * 播放当前句子
      */
     private void speakSentence() {
-        String sentence = currentSentence.toString();
+        String sentence = currentSentence.toString().trim();
         if (sentence.isEmpty()) {
             Toast.makeText(this, "请先组成句子", Toast.LENGTH_SHORT).show();
             return;
         }
 
         if (textToSpeech == null) {
-            Toast.makeText(this, "TTS未初始化，正在尝试重新初始化...", Toast.LENGTH_SHORT).show();
-            // 重新初始化TTS
+            Toast.makeText(this, "语音功能未就绪，正在初始化...", Toast.LENGTH_SHORT).show();
             initializeTTS();
             return;
         }
 
-        // 检查TTS是否可用
-        if (textToSpeech.isSpeaking()) {
-            textToSpeech.stop();
-        }
-        
-        // 设置语速和音调，使用兼容API
         try {
-            textToSpeech.setSpeechRate(1.0f);
-            textToSpeech.setPitch(1.0f);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        
-        try {
-            // 使用兼容Android 16的API播放语音
-            // 旧版API不支持Bundle参数和utteranceId
-            int speakResult = textToSpeech.speak(sentence, TextToSpeech.QUEUE_FLUSH, null);
-            
-            // 检查播放结果
-            if (speakResult == TextToSpeech.SUCCESS) {
-                Toast.makeText(this, "正在播放: " + sentence, Toast.LENGTH_SHORT).show();
-            } else {
-                // 播放失败，显示错误信息
-                Toast.makeText(this, "语音播放失败，错误码: " + speakResult, Toast.LENGTH_SHORT).show();
-                
-                // 尝试重新初始化TTS
-                initializeTTS();
+            if (textToSpeech.isSpeaking()) {
+                textToSpeech.stop();
             }
+            
+            Log.d(TAG, "开始播放: " + sentence);
+            
+            // 使用现代 API
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                int result = textToSpeech.speak(sentence, TextToSpeech.QUEUE_FLUSH, null, "utteranceId");
+                Log.d(TAG, "speak() 返回结果: " + result);
+            } else {
+                // 旧版 API
+                int result = textToSpeech.speak(sentence, TextToSpeech.QUEUE_FLUSH, null);
+                Log.d(TAG, "speak() 返回结果（旧版）: " + result);
+            }
+            
         } catch (Exception e) {
-            // 捕获异常，确保应用不会崩溃
-            e.printStackTrace();
-            Toast.makeText(this, "语音播放异常: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "播放语音时发生异常", e);
+            Toast.makeText(this, "语音播放失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
-
+    
+    /**
+     * 测试 TTS（可选）
+     */
+    private void testTTS() {
+        if (textToSpeech != null) {
+            Log.d(TAG, "测试 TTS 播放");
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    textToSpeech.speak("语音测试成功", TextToSpeech.QUEUE_FLUSH, null, null);
+                } else {
+                    textToSpeech.speak("语音测试成功", TextToSpeech.QUEUE_FLUSH, null);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "测试 TTS 失败", e);
+            }
+        }
+    }
+    
     /**
      * 清空当前句子
      */
@@ -195,106 +535,87 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
         currentSentence.setLength(0);
         sentenceTextView.setText("");
     }
-
-    @Override
-    public void onInit(int status) {
-        if (status == TextToSpeech.SUCCESS) {
-            // 简化语言设置，兼容Android 16
-            int result = TextToSpeech.LANG_MISSING_DATA;
-            try {
-                // 首先尝试基本的中文设置，兼容Android 16
-                result = textToSpeech.setLanguage(Locale.CHINESE);
-                if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                    // 尝试中国区域设置
-                    result = textToSpeech.setLanguage(Locale.CHINA);
-                }
-                
-                // 调试信息：显示语言设置结果
-                Toast.makeText(this, "语言设置结果: " + resultToString(result), Toast.LENGTH_SHORT).show();
-            } catch (Exception e) {
-                // 捕获可能的异常，确保应用不会崩溃
-                e.printStackTrace();
-                Toast.makeText(this, "语言设置异常: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-            
-            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                Toast.makeText(this, "不支持中文语言包，请安装中文TTS引擎", Toast.LENGTH_LONG).show();
-                // 提示用户安装TTS引擎
-                installTTSData();
-            } else {
-                // 设置语速和音调，使用兼容API
-                textToSpeech.setSpeechRate(1.0f);
-                textToSpeech.setPitch(1.0f);
-                Toast.makeText(this, "TTS初始化成功", Toast.LENGTH_SHORT).show();
-            }
-        } else {
-            // 显示更详细的错误信息
-            String errorMsg = "TTS引擎初始化失败，错误码: " + status;
-            Toast.makeText(this, errorMsg, Toast.LENGTH_LONG).show();
-            // 尝试安装TTS引擎
-            installTTSData();
-        }
-    }
     
     /**
-     * 将TTS语言设置结果转换为可读字符串
+     * 语言设置结果转字符串
      */
-    private String resultToString(int result) {
+    private String langResultToString(int result) {
         switch (result) {
             case TextToSpeech.LANG_AVAILABLE: return "LANG_AVAILABLE";
             case TextToSpeech.LANG_COUNTRY_AVAILABLE: return "LANG_COUNTRY_AVAILABLE";
             case TextToSpeech.LANG_COUNTRY_VAR_AVAILABLE: return "LANG_COUNTRY_VAR_AVAILABLE";
             case TextToSpeech.LANG_MISSING_DATA: return "LANG_MISSING_DATA";
             case TextToSpeech.LANG_NOT_SUPPORTED: return "LANG_NOT_SUPPORTED";
-            default: return "未知结果: " + result;
+            default: return "UNKNOWN(" + result + ")";
         }
     }
     
     /**
-     * 安装TTS数据，兼容旧版本Android
+     * 显示下载语言数据对话框
      */
-    private void installTTSData() {
-        try {
-            // 尝试安装TTS数据
-            Intent installIntent = new Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA);
-            installIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            // 检查是否有可用的TTS引擎
-            PackageManager packageManager = getPackageManager();
-            List<ResolveInfo> activities = packageManager.queryIntentActivities(installIntent, 0);
-            if (activities != null && !activities.isEmpty()) {
-                startActivity(installIntent);
-                Toast.makeText(this, "正在打开TTS数据安装界面", Toast.LENGTH_SHORT).show();
-            } else {
-                // 没有找到合适的TTS引擎
-                Toast.makeText(this, "未找到TTS引擎，请手动安装", Toast.LENGTH_LONG).show();
-                // 提示用户安装Google TTS或其他TTS引擎
-                showInstallTTSEngineDialog();
-            }
-        } catch (Exception e) {
-            // 捕获异常，确保应用不会崩溃
-            e.printStackTrace();
-            Toast.makeText(this, "安装TTS数据失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
-        }
+    private void showDownloadLanguageDataDialog() {
+        new AlertDialog.Builder(this)
+            .setTitle("需要下载语言数据")
+            .setMessage("您的 TTS 引擎需要下载中文语言数据。是否前往下载？")
+            .setPositiveButton("前往下载", (dialog, which) -> {
+                try {
+                    Intent installIntent = new Intent();
+                    installIntent.setAction(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA);
+                    startActivity(installIntent);
+                } catch (Exception e) {
+                    Log.e(TAG, "无法打开 TTS 数据下载页面", e);
+                    Toast.makeText(this, "无法打开下载页面", Toast.LENGTH_SHORT).show();
+                }
+            })
+            .setNegativeButton("取消", null)
+            .show();
     }
     
     /**
-     * 显示安装TTS引擎的提示对话框
+     * 显示 TTS 不支持对话框
      */
-    private void showInstallTTSEngineDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("缺少TTS引擎")
-               .setMessage("您的设备缺少中文TTS引擎，无法正常使用语音功能。请安装Google语音引擎或其他支持中文的TTS引擎。")
-               .setPositiveButton("确定", null)
-               .show();
+    private void showTTSNotSupportedDialog() {
+        new AlertDialog.Builder(this)
+            .setTitle("不支持中文语音")
+            .setMessage("当前 TTS 引擎不支持中文。\n\n建议安装：\n• Google 文字转语音引擎\n• 其他支持中文的 TTS 应用")
+            .setPositiveButton("前往设置", (dialog, which) -> {
+                try {
+                    Intent intent = new Intent();
+                    intent.setAction("com.android.settings.TTS_SETTINGS");
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
+                } catch (Exception e) {
+                    Log.e(TAG, "无法打开 TTS 设置", e);
+                    Toast.makeText(this, "无法打开设置", Toast.LENGTH_SHORT).show();
+                }
+            })
+            .setNegativeButton("取消", null)
+            .show();
     }
-
-    @Override
-    protected void onDestroy() {
-        if (textToSpeech != null) {
-            textToSpeech.stop();
-            textToSpeech.shutdown();
-        }
-        super.onDestroy();
+    
+    /**
+     * 显示 TTS 初始化错误对话框
+     */
+    private void showTTSInitErrorDialog(String errorMessage) {
+        new AlertDialog.Builder(this)
+            .setTitle("语音初始化失败")
+            .setMessage(errorMessage + "\n\n请检查：\n1. 设备是否安装了 TTS 引擎\n2. TTS 设置是否正确\n3. 应用是否有必要的权限")
+            .setPositiveButton("前往设置", (dialog, which) -> {
+                try {
+                    Intent intent = new Intent();
+                    intent.setAction("com.android.settings.TTS_SETTINGS");
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
+                } catch (Exception e) {
+                    Log.e(TAG, "无法打开 TTS 设置", e);
+                }
+            })
+            .setNegativeButton("重试", (dialog, which) -> {
+                initializationAttempts = 0;
+                initializeTTS();
+            })
+            .setNeutralButton("取消", null)
+            .show();
     }
 
     @Override
@@ -317,9 +638,11 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
     @Override
     public void onDeletePhrase(String category, String phrase) {
         // 从数据库中删除词组
-        dbHelper.deletePhraseByCategoryAndContent(category, phrase);
-        // 刷新ViewPager
-        refreshPhraseViewPager();
+        if (dbHelper != null) {
+            dbHelper.deletePhraseByCategoryAndContent(category, phrase);
+            // 刷新ViewPager
+            refreshPhraseViewPager();
+        }
     }
 
     /**
@@ -348,13 +671,10 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
                     phrase.setCategory(category);
                     phrase.setContent(content);
                     dbHelper.addPhrase(phrase);
-                    // 显示添加成功提示
-                    Toast.makeText(this, "添加成功: " + content, Toast.LENGTH_SHORT).show();
                     // 刷新ViewPager
                     refreshPhraseViewPager();
                 } else if (requestCode == REQUEST_EDIT_PHRASE) {
                     // 更新数据库中的词组
-                    // 这里简化处理，先删除旧词组，再添加新词组
                     String oldContent = data.getStringExtra(PhraseEditActivity.EXTRA_PHRASE_CONTENT);
                     if (oldContent != null) {
                         dbHelper.deletePhraseByCategoryAndContent(category, oldContent);
@@ -362,19 +682,22 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
                         phrase.setCategory(category);
                         phrase.setContent(content);
                         dbHelper.addPhrase(phrase);
-                        // 显示编辑成功提示
-                        Toast.makeText(this, "编辑成功: " + content, Toast.LENGTH_SHORT).show();
                         // 刷新ViewPager
                         refreshPhraseViewPager();
                     }
                 }
-            } else {
-                // 显示调试信息
-                Toast.makeText(this, "数据为空: category=" + category + ", content=" + content + ", dbHelper=" + dbHelper, Toast.LENGTH_SHORT).show();
             }
-        } else {
-            // 显示调试信息
-            Toast.makeText(this, "结果码错误: resultCode=" + resultCode + ", data=" + data, Toast.LENGTH_SHORT).show();
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (textToSpeech != null) {
+            Log.d(TAG, "释放 TTS 资源");
+            textToSpeech.stop();
+            textToSpeech.shutdown();
+            textToSpeech = null;
+        }
+        super.onDestroy();
     }
 }
