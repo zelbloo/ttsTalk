@@ -472,7 +472,7 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
     }
     
     /**
-     * 播放当前句子
+     * 播放当前句子，优化朗读效果
      */
     private void speakSentence() {
         String sentence = currentSentence.toString().trim();
@@ -492,22 +492,63 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
                 textToSpeech.stop();
             }
             
-            Log.d(TAG, "开始播放: " + sentence);
+            // 优化1：调整TTS引擎参数，减少词组间停顿
+            // 略微加快语速，减少停顿感（1.1f为略微加快）
+            textToSpeech.setSpeechRate(1.1f);
+            // 设置音调为正常水平
+            textToSpeech.setPitch(1.0f);
             
-            // 使用现代 API
+            // 优化2：优化句子格式
+            String optimizedSentence = optimizeSentenceForSpeech(sentence);
+            
+            Log.d(TAG, "开始播放: " + optimizedSentence);
+            
+            // 优化3：直接使用普通speak方法，不使用SSML，避免参数被读出来
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                int result = textToSpeech.speak(sentence, TextToSpeech.QUEUE_FLUSH, null, "utteranceId");
+                // 使用现代API，但不使用SSML
+                int result = textToSpeech.speak(optimizedSentence, TextToSpeech.QUEUE_FLUSH, null, "utteranceId");
                 Log.d(TAG, "speak() 返回结果: " + result);
             } else {
                 // 旧版 API
-                int result = textToSpeech.speak(sentence, TextToSpeech.QUEUE_FLUSH, null);
-                Log.d(TAG, "speak() 返回结果（旧版）: " + result);
+                int result = textToSpeech.speak(optimizedSentence, TextToSpeech.QUEUE_FLUSH, null);
+                Log.d(TAG, "旧版speak() 返回结果: " + result);
             }
             
         } catch (Exception e) {
             Log.e(TAG, "播放语音时发生异常", e);
             Toast.makeText(this, "语音播放失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
+    }
+    
+    /**
+     * 优化句子格式，减少词组间的停顿
+     */
+    private String optimizeSentenceForSpeech(String sentence) {
+        if (sentence == null || sentence.isEmpty()) {
+            return sentence;
+        }
+        
+        // 优化1：移除所有空格，包括词组间的空格
+        String optimized = sentence.replaceAll("\\s+", "");
+        
+        // 优化2：根据中文习惯，确保标点使用正确
+        // 这里不再需要处理标点后的空格，因为已经移除了所有空格
+        
+        // 优化3：移除句子开头和结尾的空格（可选，因为已经移除了所有空格）
+        optimized = optimized.trim();
+        
+        // 优化4：确保句子以中文标点结尾
+        if (!optimized.isEmpty()) {
+            char lastChar = optimized.charAt(optimized.length() - 1);
+            if (lastChar != '。' && lastChar != '！' && lastChar != '？') {
+                optimized += "。";
+            }
+        }
+        
+        Log.d(TAG, "优化前句子: " + sentence);
+        Log.d(TAG, "优化后句子: " + optimized);
+        
+        return optimized;
     }
     
     /**
