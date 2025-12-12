@@ -86,4 +86,4 @@ yarn-error.log*
 .env*.local
 
 # typescript
-*.tsbuildinfo
+*.tsbuildinfo# Gradle distribution packages\ngradle-*.zip
