@@ -88,16 +88,10 @@ public class PhraseCategoryFragment extends Fragment {
         PhraseAdapter adapter = new PhraseAdapter(phrases, phraseClickListener, (position, phrase, anchorView) -> {
             // 长按词组时显示操作菜单，在长按的view旁边弹出
             showPhraseOptions(position, phrase, anchorView);
-        });
+        }, phraseEditListener, category);
         phraseRecyclerView.setAdapter(adapter);
 
-        // 找到并设置浮动操作按钮的点击事件
-        FloatingActionButton addFab = view.findViewById(R.id.add_phrase_fab);
-        addFab.setOnClickListener(v -> {
-            if (phraseEditListener != null) {
-                phraseEditListener.onAddPhrase(category);
-            }
-        });
+
     }
 
     /**
@@ -134,6 +128,8 @@ public class PhraseCategoryFragment extends Fragment {
         private final List<String> phrases;
         private final PhrasePagerAdapter.PhraseClickListener phraseClickListener;
         private final OnPhraseLongClickListener longClickListener;
+        private final PhraseEditListener phraseEditListener;
+        private final String category;
 
         public interface OnPhraseLongClickListener {
             void onPhraseLongClick(int position, String phrase, View view);
@@ -141,10 +137,14 @@ public class PhraseCategoryFragment extends Fragment {
 
         public PhraseAdapter(List<String> phrases, 
                             PhrasePagerAdapter.PhraseClickListener phraseClickListener,
-                            OnPhraseLongClickListener longClickListener) {
+                            OnPhraseLongClickListener longClickListener,
+                            PhraseEditListener phraseEditListener,
+                            String category) {
             this.phrases = phrases;
             this.phraseClickListener = phraseClickListener;
             this.longClickListener = longClickListener;
+            this.phraseEditListener = phraseEditListener;
+            this.category = category;
         }
 
         @NonNull
@@ -157,32 +157,48 @@ public class PhraseCategoryFragment extends Fragment {
 
         @Override
         public void onBindViewHolder(@NonNull PhraseViewHolder holder, int position) {
-            String phrase = phrases.get(position);
-            // 确保phrase不为null
-            if (phrase != null) {
-                holder.phraseButton.setText(phrase);
-                // 确保phraseClickListener不为null
-                if (phraseClickListener != null) {
-                    holder.phraseButton.setOnClickListener(v -> phraseClickListener.onPhraseClicked(phrase));
-                }
-                // 设置长按监听器
-                holder.phraseButton.setOnLongClickListener(v -> {
-                    if (longClickListener != null) {
-                        longClickListener.onPhraseLongClick(position, phrase, v);
-                        return true;
+            // 检查是否是最后一个位置（添加按钮）
+            if (position == phrases.size()) {
+                // 设置添加按钮文本
+                holder.phraseButton.setText("+");
+                // 设置添加按钮点击事件
+                holder.phraseButton.setOnClickListener(v -> {
+                    // 调用外部监听器的添加词组方法
+                    if (phraseEditListener != null) {
+                        phraseEditListener.onAddPhrase(category);
                     }
-                    return false;
                 });
-            } else {
-                holder.phraseButton.setText("");
-                holder.phraseButton.setOnClickListener(null);
+                // 添加按钮不需要长按事件
                 holder.phraseButton.setOnLongClickListener(null);
+            } else {
+                // 普通词组按钮
+                String phrase = phrases.get(position);
+                // 确保phrase不为null
+                if (phrase != null) {
+                    holder.phraseButton.setText(phrase);
+                    // 确保phraseClickListener不为null
+                    if (phraseClickListener != null) {
+                        holder.phraseButton.setOnClickListener(v -> phraseClickListener.onPhraseClicked(phrase));
+                    }
+                    // 设置长按监听器
+                    holder.phraseButton.setOnLongClickListener(v -> {
+                        if (longClickListener != null) {
+                            longClickListener.onPhraseLongClick(position, phrase, v);
+                            return true;
+                        }
+                        return false;
+                    });
+                } else {
+                    holder.phraseButton.setText("");
+                    holder.phraseButton.setOnClickListener(null);
+                    holder.phraseButton.setOnLongClickListener(null);
+                }
             }
         }
 
         @Override
         public int getItemCount() {
-            return phrases != null ? phrases.size() : 0;
+            return phrases != null ? phrases.size() + 1 : 1; // +1 用于添加按钮
         }
 
         /**

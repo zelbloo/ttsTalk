@@ -15,7 +15,7 @@ import java.util.List;
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     // 数据库版本
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 2;
     // 数据库名称
     private static final String DATABASE_NAME = "PhraseDB";
     // 词组表名
@@ -69,6 +69,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "女"));
         addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "亲戚"));
         addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "哥"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "弟"));
         addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "姐"));
         addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "妹"));
         addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "姑"));

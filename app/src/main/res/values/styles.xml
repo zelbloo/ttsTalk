@@ -20,8 +20,15 @@
         <item name="android:layout_margin">8dp</item>
         <item name="android:textSize">18sp</item>
         <item name="android:paddingHorizontal">16dp</item>
-        <item name="android:paddingVertical">8dp</item>
-        <item name="cornerRadius">20dp</item>
+        <item name="android:paddingVertical">12dp</item>
+        <item name="cornerRadius">12dp</item>
+        <item name="android:background">@color/white</item>
+        <item name="android:elevation">4dp</item>
+        <item name="android:outlineProvider">bounds</item>
+        <item name="android:textColor">@color/primary_color</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+        <item name="rippleColor">@color/primary_color</item>
     </style>
 
     <style name="PlayButton" parent="Widget.MaterialComponents.Button">
