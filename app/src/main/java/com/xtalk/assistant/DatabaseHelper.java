@@ -51,80 +51,169 @@ public class DatabaseHelper extends SQLiteOpenHelper {
      * 初始化默认词组数据
      */
     private void initializeDefaultPhrases(SQLiteDatabase db) {
-        // 衣食住行分类
+        // 人称分类
         addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "我"));
-        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "想要"));
-        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "吃"));
-        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "喝"));
-        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "睡觉"));
-        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "去"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "你"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "他"));
         addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "家"));
-        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "医院"));
-        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "餐厅"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "爸"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "妈"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "儿子"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "女儿"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "爷爷"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "奶奶"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "姥姥"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "姥爷"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "老婆"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "男"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "女"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "亲戚"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "哥"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "姐"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "妹"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "姑"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "姨"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "舅"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "叔"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "表"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "老师"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "医生"));
+        addPhrase(db, new Phrase(0, "clothing_food_housing_transport", "谁"));
 
-        // 人际关系分类
-        addPhrase(db, new Phrase(0, "relationships", "妈妈"));
-        addPhrase(db, new Phrase(0, "relationships", "爸爸"));
-        addPhrase(db, new Phrase(0, "relationships", "医生"));
-        addPhrase(db, new Phrase(0, "relationships", "护士"));
-        addPhrase(db, new Phrase(0, "relationships", "朋友"));
-        addPhrase(db, new Phrase(0, "relationships", "家人"));
-        addPhrase(db, new Phrase(0, "relationships", "老师"));
-        addPhrase(db, new Phrase(0, "relationships", "同学"));
-        addPhrase(db, new Phrase(0, "relationships", "同事"));
+        // 判断分类
+        addPhrase(db, new Phrase(0, "relationships", "是"));
+        addPhrase(db, new Phrase(0, "relationships", "不是"));
+        addPhrase(db, new Phrase(0, "relationships", "有"));
+        addPhrase(db, new Phrase(0, "relationships", "没有"));
+        addPhrase(db, new Phrase(0, "relationships", "不"));
+        addPhrase(db, new Phrase(0, "relationships", "别"));
+        addPhrase(db, new Phrase(0, "relationships", "什么"));
+        addPhrase(db, new Phrase(0, "relationships", "吗"));
+        addPhrase(db, new Phrase(0, "relationships", "了"));
+        addPhrase(db, new Phrase(0, "relationships", "和"));
+        addPhrase(db, new Phrase(0, "relationships", "的"));
+        addPhrase(db, new Phrase(0, "relationships", "在"));
 
-        // 行为动作分类
-        addPhrase(db, new Phrase(0, "actions", "走路"));
-        addPhrase(db, new Phrase(0, "actions", "坐下"));
-        addPhrase(db, new Phrase(0, "actions", "站起来"));
-        addPhrase(db, new Phrase(0, "actions", "躺下"));
-        addPhrase(db, new Phrase(0, "actions", "阅读"));
-        addPhrase(db, new Phrase(0, "actions", "写"));
-        addPhrase(db, new Phrase(0, "actions", "看电视"));
-        addPhrase(db, new Phrase(0, "actions", "听音乐"));
-        addPhrase(db, new Phrase(0, "actions", "跑步"));
+        // 方位分类
+        addPhrase(db, new Phrase(0, "actions", "上"));
+        addPhrase(db, new Phrase(0, "actions", "下"));
+        addPhrase(db, new Phrase(0, "actions", "左"));
+        addPhrase(db, new Phrase(0, "actions", "右"));
+        addPhrase(db, new Phrase(0, "actions", "面"));
+        addPhrase(db, new Phrase(0, "actions", "前"));
+        addPhrase(db, new Phrase(0, "actions", "后"));
+        addPhrase(db, new Phrase(0, "actions", "里"));
+        addPhrase(db, new Phrase(0, "actions", "外"));
+        addPhrase(db, new Phrase(0, "actions", "哪"));
+        addPhrase(db, new Phrase(0, "actions", "那"));
 
-        // 情绪表达分类
-        addPhrase(db, new Phrase(0, "emotions", "开心"));
-        addPhrase(db, new Phrase(0, "emotions", "难过"));
-        addPhrase(db, new Phrase(0, "emotions", "饿了"));
-        addPhrase(db, new Phrase(0, "emotions", "渴了"));
-        addPhrase(db, new Phrase(0, "emotions", "累了"));
-        addPhrase(db, new Phrase(0, "emotions", "生气"));
-        addPhrase(db, new Phrase(0, "emotions", "害怕"));
-        addPhrase(db, new Phrase(0, "emotions", "惊讶"));
-        addPhrase(db, new Phrase(0, "emotions", "平静"));
+        // 动作分类
+        addPhrase(db, new Phrase(0, "emotions", "吃"));
+        addPhrase(db, new Phrase(0, "emotions", "想"));
+        addPhrase(db, new Phrase(0, "emotions", "说"));
+        addPhrase(db, new Phrase(0, "emotions", "去"));
+        addPhrase(db, new Phrase(0, "emotions", "看"));
+        addPhrase(db, new Phrase(0, "emotions", "听"));
+        addPhrase(db, new Phrase(0, "emotions", "喝"));
+        addPhrase(db, new Phrase(0, "emotions", "用"));
+        addPhrase(db, new Phrase(0, "emotions", "睡"));
+        addPhrase(db, new Phrase(0, "emotions", "走"));
+        addPhrase(db, new Phrase(0, "emotions", "穿"));
+        addPhrase(db, new Phrase(0, "emotions", "脱"));
+        addPhrase(db, new Phrase(0, "emotions", "来"));
+        addPhrase(db, new Phrase(0, "emotions", "等"));
+        addPhrase(db, new Phrase(0, "emotions", "坐"));
+        addPhrase(db, new Phrase(0, "emotions", "站"));
+        addPhrase(db, new Phrase(0, "emotions", "买"));
+        addPhrase(db, new Phrase(0, "emotions", "借"));
+        addPhrase(db, new Phrase(0, "emotions", "需要"));
+        addPhrase(db, new Phrase(0, "emotions", "好"));
+        addPhrase(db, new Phrase(0, "emotions", "不好"));
+        addPhrase(db, new Phrase(0, "emotions", "洗澡"));
+        addPhrase(db, new Phrase(0, "emotions", "刷牙"));
+        addPhrase(db, new Phrase(0, "emotions", "剪"));
 
-        // 需求请求分类
-        addPhrase(db, new Phrase(0, "requests", "需要"));
-        addPhrase(db, new Phrase(0, "requests", "帮助"));
-        addPhrase(db, new Phrase(0, "requests", "请"));
-        addPhrase(db, new Phrase(0, "requests", "谢谢"));
-        addPhrase(db, new Phrase(0, "requests", "对不起"));
-        addPhrase(db, new Phrase(0, "requests", "请帮我"));
-        addPhrase(db, new Phrase(0, "requests", "我需要"));
-        addPhrase(db, new Phrase(0, "requests", "可以吗"));
-        addPhrase(db, new Phrase(0, "requests", "麻烦你"));
+        // 状态分类
+        addPhrase(db, new Phrase(0, "requests", "饿"));
+        addPhrase(db, new Phrase(0, "requests", "渴"));
+        addPhrase(db, new Phrase(0, "requests", "困"));
+        addPhrase(db, new Phrase(0, "requests", "疼"));
+        addPhrase(db, new Phrase(0, "requests", "痒"));
+        addPhrase(db, new Phrase(0, "requests", "高兴"));
+        addPhrase(db, new Phrase(0, "requests", "难受"));
+        addPhrase(db, new Phrase(0, "requests", "生气"));
+        addPhrase(db, new Phrase(0, "requests", "害怕"));
+        addPhrase(db, new Phrase(0, "requests", "新"));
+        addPhrase(db, new Phrase(0, "requests", "旧"));
+        addPhrase(db, new Phrase(0, "requests", "老"));
+        addPhrase(db, new Phrase(0, "requests", "干净"));
+        addPhrase(db, new Phrase(0, "requests", "脏"));
+        addPhrase(db, new Phrase(0, "requests", "快"));
+        addPhrase(db, new Phrase(0, "requests", "慢"));
+        addPhrase(db, new Phrase(0, "requests", "大"));
+        addPhrase(db, new Phrase(0, "requests", "小"));
+        addPhrase(db, new Phrase(0, "requests", "多"));
+        addPhrase(db, new Phrase(0, "requests", "少"));
+        addPhrase(db, new Phrase(0, "requests", "冷"));
+        addPhrase(db, new Phrase(0, "requests", "热"));
 
-        // 其他常用语分类
-        addPhrase(db, new Phrase(0, "other", "是"));
-        addPhrase(db, new Phrase(0, "other", "不是"));
-        addPhrase(db, new Phrase(0, "other", "好"));
-        addPhrase(db, new Phrase(0, "other", "不好"));
-        addPhrase(db, new Phrase(0, "other", "可以"));
-        addPhrase(db, new Phrase(0, "other", "不可以"));
-        addPhrase(db, new Phrase(0, "other", "现在"));
-        addPhrase(db, new Phrase(0, "other", "后来"));
-        addPhrase(db, new Phrase(0, "other", "今天"));
-        addPhrase(db, new Phrase(0, "other", "明天"));
-        addPhrase(db, new Phrase(0, "other", "昨天"));
-        addPhrase(db, new Phrase(0, "other", "早上"));
-        addPhrase(db, new Phrase(0, "other", "中午"));
-        addPhrase(db, new Phrase(0, "other", "晚上"));
-        addPhrase(db, new Phrase(0, "other", "这里"));
-        addPhrase(db, new Phrase(0, "other", "那里"));
-        addPhrase(db, new Phrase(0, "other", "这个"));
-        addPhrase(db, new Phrase(0, "other", "那个"));
+        // 数字分类
+        addPhrase(db, new Phrase(0, "other", "1"));
+        addPhrase(db, new Phrase(0, "other", "2"));
+        addPhrase(db, new Phrase(0, "other", "3"));
+        addPhrase(db, new Phrase(0, "other", "4"));
+        addPhrase(db, new Phrase(0, "other", "5"));
+        addPhrase(db, new Phrase(0, "other", "6"));
+        addPhrase(db, new Phrase(0, "other", "7"));
+        addPhrase(db, new Phrase(0, "other", "8"));
+        addPhrase(db, new Phrase(0, "other", "9"));
+        addPhrase(db, new Phrase(0, "other", "0"));
+        addPhrase(db, new Phrase(0, "other", "个"));
+        addPhrase(db, new Phrase(0, "other", "十"));
+        addPhrase(db, new Phrase(0, "other", "百"));
+        addPhrase(db, new Phrase(0, "other", "千"));
+        addPhrase(db, new Phrase(0, "other", "万"));
+        addPhrase(db, new Phrase(0, "other", "点"));
+        addPhrase(db, new Phrase(0, "other", "块"));
+
+        // 时间分类
+        addPhrase(db, new Phrase(0, "time", "今天"));
+        addPhrase(db, new Phrase(0, "time", "明天"));
+        addPhrase(db, new Phrase(0, "time", "后天"));
+        addPhrase(db, new Phrase(0, "time", "昨天"));
+        addPhrase(db, new Phrase(0, "time", "以前"));
+        addPhrase(db, new Phrase(0, "time", "以后"));
+        addPhrase(db, new Phrase(0, "time", "时候"));
+        addPhrase(db, new Phrase(0, "time", "早上"));
+        addPhrase(db, new Phrase(0, "time", "中午"));
+        addPhrase(db, new Phrase(0, "time", "晚上"));
+        addPhrase(db, new Phrase(0, "time", "刚才"));
+
+        // 名词分类
+        addPhrase(db, new Phrase(0, "noun", "医院"));
+        addPhrase(db, new Phrase(0, "noun", "药"));
+        addPhrase(db, new Phrase(0, "noun", "电话"));
+        addPhrase(db, new Phrase(0, "noun", "车"));
+        addPhrase(db, new Phrase(0, "noun", "房子"));
+        addPhrase(db, new Phrase(0, "noun", "床"));
+        addPhrase(db, new Phrase(0, "noun", "钱"));
+        addPhrase(db, new Phrase(0, "noun", "红包"));
+        addPhrase(db, new Phrase(0, "noun", "电视"));
+        addPhrase(db, new Phrase(0, "noun", "手机"));
+        addPhrase(db, new Phrase(0, "noun", "饮料"));
+        addPhrase(db, new Phrase(0, "noun", "水"));
+        addPhrase(db, new Phrase(0, "noun", "饭"));
+        addPhrase(db, new Phrase(0, "noun", "肉"));
+        addPhrase(db, new Phrase(0, "noun", "东西"));
+        addPhrase(db, new Phrase(0, "noun", "头"));
+        addPhrase(db, new Phrase(0, "noun", "胳膊"));
+        addPhrase(db, new Phrase(0, "noun", "手"));
+        addPhrase(db, new Phrase(0, "noun", "腿"));
+        addPhrase(db, new Phrase(0, "noun", "头发"));
+        addPhrase(db, new Phrase(0, "noun", "脚"));
+        addPhrase(db, new Phrase(0, "noun", "衣服"));
+        addPhrase(db, new Phrase(0, "noun", "鞋"));
+        addPhrase(db, new Phrase(0, "noun", "厕所"));
     }
 
     /**

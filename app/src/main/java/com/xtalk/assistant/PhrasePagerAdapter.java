@@ -27,7 +27,9 @@ public class PhrasePagerAdapter extends FragmentStateAdapter {
             "actions",
             "emotions",
             "requests",
-            "other"
+            "other",
+            "time",
+            "noun"
     };
 
     public PhrasePagerAdapter(@NonNull Context context, PhraseClickListener phraseClickListener) {

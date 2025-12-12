@@ -1,5 +1,7 @@
 package com.xtalk.assistant;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -9,6 +11,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
 import android.util.Log;
+import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.app.AlertDialog;
@@ -86,6 +89,12 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
                 case 5:
                     tab.setText(R.string.category_other);
                     break;
+                case 6:
+                    tab.setText(R.string.category_time);
+                    break;
+                case 7:
+                    tab.setText(R.string.category_noun);
+                    break;
             }
         }).attach();
 
@@ -94,6 +103,9 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
 
         // 设置清空按钮点击事件
         findViewById(R.id.clear_button).setOnClickListener(v -> clearSentence());
+
+        // 设置复制按钮点击事件
+        findViewById(R.id.copy_button).setOnClickListener(v -> copySentence());
         
         // 延迟初始化 TTS
         findViewById(R.id.play_button).postDelayed(() -> {
@@ -570,11 +582,45 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
     }
     
     /**
-     * 清空当前句子
+     * 删除最后一个已输入的词语
      */
     private void clearSentence() {
-        currentSentence.setLength(0);
-        sentenceTextView.setText("");
+        if (currentSentence.length() == 0) {
+            return;
+        }
+        
+        // 找到最后一个空格的位置
+        int lastSpaceIndex = currentSentence.lastIndexOf(" ");
+        
+        if (lastSpaceIndex != -1) {
+            // 如果有空格，删除从最后一个空格开始到末尾的所有字符
+            currentSentence.delete(lastSpaceIndex, currentSentence.length());
+        } else {
+            // 如果没有空格（只有一个词语），清空整个句子
+            currentSentence.setLength(0);
+        }
+        
+        sentenceTextView.setText(currentSentence.toString());
+    }
+    
+    /**
+     * 复制当前句子到剪贴板
+     */
+    private void copySentence() {
+        String sentence = currentSentence.toString().trim();
+        if (sentence.isEmpty()) {
+            Toast.makeText(this, "当前没有可复制的内容", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // 获取剪贴板管理器
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        // 创建剪贴数据
+        ClipData clip = ClipData.newPlainText("sentence", sentence);
+        // 设置剪贴数据到剪贴板
+        clipboard.setPrimaryClip(clip);
+        
+        Toast.makeText(this, "内容已复制到剪贴板", Toast.LENGTH_SHORT).show();
     }
     
     /**
